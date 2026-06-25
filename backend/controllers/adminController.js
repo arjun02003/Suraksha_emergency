@@ -1,7 +1,7 @@
 const axios = require("axios");
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
-const Hospital = require("../models/hospital");
+const Hospital = require("../models/Hospital");
 
 exports.createHospital = async (req, res) => {
   try {

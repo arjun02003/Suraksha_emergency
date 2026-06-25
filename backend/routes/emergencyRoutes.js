@@ -1,14 +1,14 @@
 const express = require("express");
 const router = express.Router();
 
-const protect = require("../middleware/authMiddleware");
+const protect = require("../middleware/AuthMiddleware");
 
 const {
   createEmergency,
   getPendingEmergencies,
   acceptEmergency,
   rejectEmergency
-} = require("../controllers/emergencyController");
+} = require("../controllers/EmegencyController");
 
 // Test Route
 router.get("/test", (req, res) => {

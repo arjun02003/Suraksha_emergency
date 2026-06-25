@@ -1,5 +1,5 @@
 const Ambulance = require("../models/Ambulance");
-const Hospital = require("../models/hospital");
+const Hospital = require("../models/Hospital");
 
 exports.createAmbulance = async (req, res) => {
   try {

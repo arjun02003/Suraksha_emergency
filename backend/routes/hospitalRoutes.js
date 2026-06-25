@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-const protect = require("../middleware/authMiddleware");
+const protect = require("../middleware/AuthMiddleware");
 const adminOnly = protect.adminOnly;
 
 const {
@@ -9,7 +9,7 @@ const {
   getHospitals,
   getHospitalMe,
   updateHospital,
-} = require("../controllers/hospitalController");
+} = require("../controllers/HospitalController");
 
 // Register
 router.post("/register", protect, adminOnly, registerHospital);

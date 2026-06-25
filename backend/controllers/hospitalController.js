@@ -1,4 +1,4 @@
-const Hospital = require("../models/hospital");
+const Hospital = require("../models/Hospital");
 const User = require("../models/User");
 
 // Register Hospital

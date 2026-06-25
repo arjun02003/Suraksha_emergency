@@ -3,11 +3,11 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 
-const emergencyRoutes = require("./routes/emergencyRoutes");
-const authRoutes = require("./routes/authRoutes");
-const hospitalRoutes = require("./routes/hospitalRoutes");
-const ambulanceRoutes = require("./routes/ambulanceRoutes");
-const adminRoutes = require("./routes/adminRoutes");
+const emergencyRoutes = require("./routes/EmergencyRoutes");
+const authRoutes = require("./routes/AuthRoutes");
+const hospitalRoutes = require("./routes/Hospital");
+const ambulanceRoutes = require("./routes/AmbulanceRoutes");
+const adminRoutes = require("./routes/AdminRoutes");
 
 dotenv.config();
 

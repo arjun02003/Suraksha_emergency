@@ -1,13 +1,13 @@
 const express = require("express");
 const router = express.Router();
 
-const protect = require("../middleware/authMiddleware");
+const protect = require("../middleware/AuthMiddleware");
 const {
   createAmbulance,
   getMyAmbulances,
   updateAmbulance,
   deleteAmbulance,
-} = require("../controllers/ambulanceController");
+} = require("../controllers/AmbulanceController");
 
 router.post("/create", protect, createAmbulance);
 router.get("/my-ambulances", protect, getMyAmbulances);
