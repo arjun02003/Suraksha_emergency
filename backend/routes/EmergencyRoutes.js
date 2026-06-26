@@ -8,7 +8,7 @@ const {
   getPendingEmergencies,
   acceptEmergency,
   rejectEmergency
-} = require("../controllers/emergencyController");
+} = require("../controllers/EmergencyController");
 
 // Test Route
 router.get("/test", (req, res) => {
