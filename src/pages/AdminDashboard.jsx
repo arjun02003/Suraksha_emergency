@@ -44,7 +44,7 @@ export default function AdminDashboard() {
   const fetchHospitals = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get("http://localhost:5000/api/hospital", {
+      const response = await axios.get("http://https://suraksha-emergency-5.onrender.com:5000/api/hospital", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
