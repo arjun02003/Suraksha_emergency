@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Landing from "../pages/Landing";
 import Login from "../pages/Login";
 import Register from "../pages/Register";
+import SOS from "../pages/SOS";
 import UserDashboard from "../pages/UserDashboard";
 import HospitalDashboard from "../pages/HospitalDashboard";
 import AdminDashboard from "../pages/AdminDashboard";
@@ -16,7 +17,7 @@ export default function AppRoutes() {
         <Route path="/register" element={<Register />} />
 
         {/* Direct SOS route so Landing's SOS link resolves */}
-        <Route path="/sos" element={<UserDashboard />} />
+        <Route path="/sos" element={<SOS />} />
 
         {/* User */}
         <Route path="/dashboard" element={<UserDashboard />} />
