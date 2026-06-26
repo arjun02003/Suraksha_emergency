@@ -15,6 +15,9 @@ export default function AppRoutes() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
+        {/* Direct SOS route so Landing's SOS link resolves */}
+        <Route path="/sos" element={<UserDashboard />} />
+
         {/* User */}
         <Route path="/dashboard" element={<UserDashboard />} />
 
