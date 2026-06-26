@@ -31,7 +31,7 @@ const Login = () => {
       setIsLoading(true);
 
       const response = await axios.post(
-        "http://localhost:5000/api/auth/login",
+        "https://suraksha-emergency-4.onrender.com/api/auth/login",
         {
           email,
           password,

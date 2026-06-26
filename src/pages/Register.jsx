@@ -70,7 +70,7 @@ export default function Register() {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/auth/register",
+        "https://suraksha-emergency-4.onrender.com/api/auth/register",
         {
           name: formData.fullName,
           email: formData.email,

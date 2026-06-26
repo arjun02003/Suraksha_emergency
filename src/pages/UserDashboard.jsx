@@ -67,7 +67,7 @@ export default function UserDashboard() {
           const { latitude, longitude } = position.coords;
 
           const response = await axios.post(
-            "http://localhost:5000/api/emergency/create",
+            "https://suraksha-emergency-4.onrender.com/api/emergency/create",
             { latitude, longitude },
             {
               headers: { Authorization: `Bearer ${token}` },
