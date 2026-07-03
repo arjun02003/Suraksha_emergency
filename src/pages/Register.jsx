@@ -77,6 +77,10 @@ export default function Register() {
           phone: formData.phone,
           password: formData.password,
           role: "user",
+          bloodGroup: formData.bloodGroup,
+          emergencyContact: formData.emergencyContactName && formData.emergencyContactNumber
+            ? `${formData.emergencyContactName} - ${formData.emergencyContactNumber}`
+            : "",
         }
       );
 

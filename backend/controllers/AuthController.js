@@ -5,7 +5,7 @@ const jwt = require("jsonwebtoken");
 // ================= REGISTER =================
 exports.registerUser = async (req, res) => {
   try {
-    const { name, email, phone, password, role } = req.body;
+    const { name, email, phone, password, role, bloodGroup, emergencyContact } = req.body;
 
     if (!name || !email || !phone || !password) {
       return res.status(400).json({
@@ -38,6 +38,8 @@ exports.registerUser = async (req, res) => {
       phone,
       password: hashedPassword,
       role: "user",
+      bloodGroup: bloodGroup || "",
+      emergencyContact: emergencyContact || "",
     });
 
     return res.status(201).json({
@@ -49,6 +51,8 @@ exports.registerUser = async (req, res) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
+        bloodGroup: user.bloodGroup,
+        emergencyContact: user.emergencyContact,
       },
     });
   } catch (err) {
@@ -133,6 +137,8 @@ exports.loginUser = async (req, res) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
+        bloodGroup: user.bloodGroup,
+        emergencyContact: user.emergencyContact,
       },
     });
   } catch (error) {

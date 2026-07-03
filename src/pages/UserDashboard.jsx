@@ -1,17 +1,17 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { 
   User, Phone, Clock, MapPin, Hospital, AlertTriangle, 
-  History, LogOut, Heart, Ambulance 
+  History, LogOut, Heart, Ambulance, Loader2
 } from "lucide-react";
 
 export default function UserDashboard() {
-  const [user, setUser] = useState({
-    name: "Rahul Sharma",
-    bloodGroup: "O+",
-    emergencyContact: { name: "Priya Sharma", phone: "+91 98765 43210" }
-  });
+  const navigate = useNavigate();
+
+  const [user, setUser] = useState(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState(null);
 
   const [isEmergencyActive, setIsEmergencyActive] = useState(false);
   const [assignedHospital, setAssignedHospital] = useState(null);
@@ -26,13 +26,55 @@ export default function UserDashboard() {
   const [showSOSModal, setShowSOSModal] = useState(false);
   const [isActivating, setIsActivating] = useState(false);
 
-  // Load user from localStorage
+  // Fetch fresh profile from backend on mount
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-  }, []);
+    const fetchProfile = async () => {
+      try {
+        setIsProfileLoading(true);
+        setProfileError(null);
+
+        const token = localStorage.getItem("token");
+        if (!token) {
+          navigate("/login");
+          return;
+        }
+
+        const response = await axios.get(
+          "https://suraksha-emergency-4.onrender.com/api/user/me",
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        if (response.data.success && response.data.user) {
+          setUser(response.data.user);
+          // Update localStorage with fresh data
+          localStorage.setItem("user", JSON.stringify(response.data.user));
+        } else {
+          throw new Error("Failed to load profile");
+        }
+      } catch (error) {
+        console.error("Profile fetch error:", error);
+        // Fallback to localStorage if API fails
+        const storedUser = localStorage.getItem("user");
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+        } else {
+          setProfileError("Unable to load profile. Please login again.");
+        }
+      } finally {
+        setIsProfileLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [navigate]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    navigate("/");
+  };
 
   const emergencyHistory = [
     {
@@ -108,6 +150,36 @@ export default function UserDashboard() {
     }
   };
 
+  // Loading state
+  if (isProfileLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 size={48} className="animate-spin text-red-500 mx-auto mb-4" />
+          <p className="text-slate-400 text-lg">Loading your profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (profileError && !user) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+        <div className="text-center">
+          <AlertTriangle size={48} className="text-red-500 mx-auto mb-4" />
+          <p className="text-red-400 text-lg mb-4">{profileError}</p>
+          <button
+            onClick={() => navigate("/login")}
+            className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-2xl font-medium transition-colors"
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       {/* Navbar */}
@@ -126,13 +198,13 @@ export default function UserDashboard() {
                 <p className="text-xs text-slate-400">User</p>
               </div>
             </div>
-            <Link
-              to="/"
+            <button
+              onClick={handleLogout}
               className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 rounded-2xl text-sm font-medium transition-colors"
             >
               <LogOut size={18} />
               Logout
-            </Link>
+            </button>
           </div>
         </div>
       </nav>
@@ -198,10 +270,7 @@ export default function UserDashboard() {
                     <div>
                       <p className="text-xs text-slate-400">EMERGENCY CONTACT</p>
                       <p className="font-medium mt-1">
-                        {user?.emergencyContact?.name || "Not Added"}
-                      </p>
-                      <p className="text-red-400 text-sm">
-                        {user?.emergencyContact?.phone || "-"}
+                        {user?.emergencyContact || "Not Added"}
                       </p>
                     </div>
                     <div>
@@ -270,8 +339,7 @@ export default function UserDashboard() {
                       <Phone className="text-red-500" />
                     </div>
                     <div>
-                      <p className="font-medium">{user?.emergencyContact?.name || "Not Added"}</p>
-                      <p className="text-slate-400">{user?.emergencyContact?.phone || "-"}</p>
+                      <p className="font-medium">{user?.emergencyContact || "Not Added"}</p>
                     </div>
                   </div>
                   <button className="text-red-500 hover:text-red-400">Call Now</button>

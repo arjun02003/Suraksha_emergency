@@ -8,6 +8,7 @@ const authRoutes = require("./routes/AuthRoutes");
 const hospitalRoutes = require("./routes/HospitalRoutes");
 const ambulanceRoutes = require("./routes/AmbulanceRoutes");
 const adminRoutes = require("./routes/AdminRoutes");
+const userRoutes = require("./routes/UserRoutes");
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/hospital", hospitalRoutes);
 app.use("/api/ambulance", ambulanceRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/user", userRoutes);
 
 // Server Start
 const PORT = process.env.PORT || 5000;
