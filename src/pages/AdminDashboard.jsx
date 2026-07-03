@@ -5,6 +5,7 @@ import {
   Users, Hospital, AlertTriangle, Ambulance, 
   TrendingUp, Activity, LogOut, Shield, Clock 
 } from "lucide-react";
+import { HospitalMap } from "../components/map";
 
 export default function AdminDashboard() {
   const [stats] = useState({
@@ -256,6 +257,15 @@ export default function AdminDashboard() {
               </tbody>
             </table>
           </div>
+        </div>
+
+        {/* Hospital Map — shows all hospitals from MongoDB */}
+        <div className="bg-slate-900 border border-slate-700 rounded-3xl p-8 mb-10">
+          <h3 className="text-2xl font-semibold mb-6 flex items-center gap-3">
+            <Hospital size={22} className="text-emerald-500" />
+            Hospital Locations
+          </h3>
+          <HospitalMap hospitals={hospitals} height={480} />
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
