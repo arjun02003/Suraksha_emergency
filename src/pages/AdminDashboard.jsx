@@ -1,27 +1,36 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
-import { 
-  Users, Hospital, AlertTriangle, Ambulance, 
-  TrendingUp, Activity, LogOut, Shield, Clock 
+import {
+  Users,
+  Hospital,
+  AlertTriangle,
+  Ambulance,
+  LogOut,
+  Shield,
+  Plus,
+  Eye,
+  Pencil,
+  Trash2,
+  KeyRound,
+  MapPin,
 } from "lucide-react";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 export default function AdminDashboard() {
-  const [stats] = useState({
-    totalUsers: 12480,
-    totalHospitals: 87,
-    activeEmergencies: 42,
-    availableAmbulances: 156
+  const [dashboardData, setDashboardData] = useState({
+    stats: {
+      totalUsers: 0,
+      totalHospitals: 0,
+      hospitalsOnline: 0,
+      hospitalsOffline: 0,
+      activeSosRequests: 0,
+    },
+    hospitals: [],
+    activeEmergencies: [],
   });
-
-  const [recentRequests] = useState([
-    { id: 1, patient: "Aarav Patel", hospital: "Apollo Hospital", type: "Accident", time: "3 min ago", status: "Critical" },
-    { id: 2, patient: "Priya Sharma", hospital: "Fortis Hospital", type: "Cardiac", time: "12 min ago", status: "High" },
-    { id: 3, patient: "Rohan Kumar", hospital: "Manipal Hospital", type: "Trauma", time: "28 min ago", status: "Medium" },
-    { id: 4, patient: "Sneha Rao", hospital: "Apollo Hospital", type: "Respiratory", time: "41 min ago", status: "High" },
-  ]);
-
-  const [hospitals, setHospitals] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showHospitalModal, setShowHospitalModal] = useState(false);
   const [hospitalForm, setHospitalForm] = useState({
     name: "",
@@ -31,9 +40,17 @@ export default function AdminDashboard() {
     address: "",
     emergencyTypes: "",
   });
+  const [isEditingHospital, setIsEditingHospital] = useState(false);
+  const [editingHospitalId, setEditingHospitalId] = useState(null);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [selectedHospital, setSelectedHospital] = useState(null);
+  const [generatePassword, setGeneratePassword] = useState(true);
   const [isSubmittingHospital, setIsSubmittingHospital] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordToShow, setPasswordToShow] = useState("");
+  const [hospitalFormError, setHospitalFormError] = useState("");
 
   const showSuccessToast = (message) => {
     setToastMessage(message);
@@ -41,44 +58,109 @@ export default function AdminDashboard() {
     setTimeout(() => setShowToast(false), 3000);
   };
 
-  const fetchHospitals = async () => {
+  const fetchDashboardData = async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem("token");
-      const response = await axios.get("http://https://suraksha-emergency-5.onrender.com:5000/api/hospital", {
+      const response = await axios.get(`${API_BASE_URL}/api/admin/dashboard`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-      setHospitals(response.data.hospitals || []);
+
+      setDashboardData({
+        stats: response.data.stats || {
+          totalUsers: 0,
+          totalHospitals: 0,
+          hospitalsOnline: 0,
+          hospitalsOffline: 0,
+          activeSosRequests: 0,
+        },
+        hospitals: response.data.hospitals || [],
+        activeEmergencies: response.data.activeEmergencies || [],
+      });
     } catch (error) {
-      console.error("Failed to load hospitals", error);
+      console.error("Failed to load dashboard data", error);
+      showSuccessToast("Unable to load dashboard data right now.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleHospitalChange = (e) => {
     const { name, value } = e.target;
     setHospitalForm((prev) => ({ ...prev, [name]: value }));
+    if (hospitalFormError) {
+      setHospitalFormError("");
+    }
+  };
+
+  const validateHospitalForm = () => {
+    const name = hospitalForm.name.trim();
+    const email = hospitalForm.email.trim();
+    const password = hospitalForm.password.trim();
+    const phone = hospitalForm.phone.trim();
+    const address = hospitalForm.address.trim();
+    const emergencyTypes = hospitalForm.emergencyTypes
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    if (!name || !email || !phone || !address || emergencyTypes.length === 0) {
+      return "Please fill all required hospital fields.";
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return "Please enter a valid email address.";
+    }
+
+    if (!generatePassword && !password) {
+      return "Please enter a password or enable auto-generation.";
+    }
+
+    if (phone.length < 7) {
+      return "Please enter a valid phone number.";
+    }
+
+    return "";
   };
 
   const handleCreateHospital = async (e) => {
     e.preventDefault();
+    const validationError = validateHospitalForm();
+
+    if (validationError) {
+      setHospitalFormError(validationError);
+      return;
+    }
+
     setIsSubmittingHospital(true);
+    setHospitalFormError("");
 
     try {
       const token = localStorage.getItem("token");
       const payload = {
-        ...hospitalForm,
+        name: hospitalForm.name.trim(),
+        email: hospitalForm.email.trim(),
+        phone: hospitalForm.phone.trim(),
+        address: hospitalForm.address.trim(),
         emergencyTypes: hospitalForm.emergencyTypes
           .split(",")
           .map((item) => item.trim())
           .filter(Boolean),
+        ...(generatePassword ? {} : { password: hospitalForm.password.trim() }),
       };
 
-      await axios.post("https://suraksha-emergency-4.onrender.com/api/admin/create-hospital", payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      let response;
+      if (isEditingHospital && editingHospitalId) {
+        response = await axios.put(`${API_BASE_URL}/api/admin/hospital/${editingHospitalId}`, payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } else {
+        response = await axios.post(`${API_BASE_URL}/api/admin/create-hospital`, payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
 
       setHospitalForm({
         name: "",
@@ -88,19 +170,83 @@ export default function AdminDashboard() {
         address: "",
         emergencyTypes: "",
       });
+      setGeneratePassword(true);
       setShowHospitalModal(false);
-      await fetchHospitals();
-      showSuccessToast("Hospital created successfully.");
+      setIsEditingHospital(false);
+      setEditingHospitalId(null);
+      await fetchDashboardData();
+      if (response.data.generatedPassword) {
+        setPasswordToShow(response.data.generatedPassword);
+        setShowPasswordModal(true);
+      } else {
+        showSuccessToast("Hospital created successfully.");
+      }
     } catch (error) {
-      alert(error.response?.data?.message || "Failed to create hospital");
+      setHospitalFormError(error.response?.data?.message || "Failed to create hospital");
       console.error(error);
     } finally {
       setIsSubmittingHospital(false);
     }
   };
 
+  const handleHospitalAction = (action, hospital) => {
+    if (!hospital) return showSuccessToast('Hospital not found');
+    const token = localStorage.getItem('token');
+
+    if (action === 'View') {
+      setSelectedHospital(hospital);
+      setShowViewModal(true);
+      return;
+    }
+
+    if (action === 'Edit') {
+      setIsEditingHospital(true);
+      setEditingHospitalId(hospital._id);
+      setHospitalForm({
+        name: hospital.name || '',
+        email: hospital.email || '',
+        password: '',
+        phone: hospital.phone || '',
+        address: hospital.address || '',
+        emergencyTypes: (hospital.emergencyTypes || []).join(', '),
+      });
+      setShowHospitalModal(true);
+      return;
+    }
+
+    if (action === 'Delete') {
+      if (!window.confirm(`Are you sure you want to delete ${hospital.name}? This cannot be undone.`)) return;
+      axios.delete(`${API_BASE_URL}/api/admin/hospital/${hospital._id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then(() => {
+        showSuccessToast('Hospital deleted');
+        fetchDashboardData();
+      }).catch((err) => {
+        alert(err.response?.data?.message || 'Failed to delete hospital');
+      });
+      return;
+    }
+
+    if (action === 'Reset Password') {
+      if (!window.confirm(`Reset password for ${hospital.name}?`)) return;
+      axios.post(`${API_BASE_URL}/api/admin/hospital/${hospital._id}/reset-password`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then((res) => {
+        if (res.data.generatedPassword) {
+          setPasswordToShow(res.data.generatedPassword);
+          setShowPasswordModal(true);
+        } else {
+          showSuccessToast('Password reset successfully');
+        }
+      }).catch((err) => {
+        alert(err.response?.data?.message || 'Failed to reset password');
+      });
+      return;
+    }
+  };
+
   useEffect(() => {
-    fetchHospitals();
+    fetchDashboardData();
   }, []);
 
   return (
@@ -110,16 +256,16 @@ export default function AdminDashboard() {
           {toastMessage}
         </div>
       )}
-      {/* Navbar */}
-      <nav className="border-b border-slate-800 bg-slate-950/90 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-8 py-5 flex justify-between items-center">
+
+      <nav className="sticky top-0 z-50 border-b border-slate-800 bg-slate-950/90 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-8 py-5">
           <div className="flex items-center gap-4">
             <h1 className="text-3xl font-bold text-red-500">🚑 SURAKSHA</h1>
-            <div className="px-4 py-1 bg-slate-900 rounded-full text-sm font-medium text-slate-300">ADMIN PANEL</div>
+            <div className="rounded-full bg-slate-900 px-4 py-1 text-sm font-medium text-slate-300">ADMIN PANEL</div>
           </div>
           <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3 bg-slate-900 px-5 py-2 rounded-2xl">
-              <div className="w-8 h-8 bg-red-500/20 rounded-full flex items-center justify-center">
+            <div className="flex items-center gap-3 rounded-2xl bg-slate-900 px-5 py-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/20">
                 <Shield size={18} className="text-red-500" />
               </div>
               <div>
@@ -129,7 +275,7 @@ export default function AdminDashboard() {
             </div>
             <Link
               to="/"
-              className="flex items-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 rounded-2xl transition-colors"
+              className="flex items-center gap-2 rounded-2xl bg-slate-900 px-6 py-3 transition-colors hover:bg-slate-800"
             >
               <LogOut size={18} />
               Logout
@@ -138,79 +284,81 @@ export default function AdminDashboard() {
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-8 py-8">
-        <div className="flex justify-between items-end mb-10">
+      <div className="mx-auto max-w-7xl px-8 py-8">
+        <div className="mb-10 flex items-end justify-between">
           <div>
             <h2 className="text-4xl font-bold">System Overview</h2>
-            <p className="text-slate-400 mt-1">Real-time Emergency Response Monitoring</p>
+            <p className="mt-1 text-slate-400">Real-time Emergency Response Monitoring</p>
           </div>
-          <div className="text-slate-400 text-sm">
-            {new Date().toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric' })}
-          </div>
-        </div>
-
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-10">
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl p-8">
-            <div className="flex justify-between">
-              <div>
-                <p className="text-slate-400">TOTAL USERS</p>
-                <p className="text-5xl font-bold mt-4">{stats.totalUsers.toLocaleString()}</p>
-              </div>
-              <Users size={48} className="text-blue-500" />
-            </div>
-            <p className="text-emerald-400 text-sm mt-4 flex items-center gap-1">
-              <TrendingUp size={16} /> +12% this month
-            </p>
-          </div>
-
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl p-8">
-            <div className="flex justify-between">
-              <div>
-                <p className="text-slate-400">REGISTERED HOSPITALS</p>
-                <p className="text-5xl font-bold mt-4">{stats.totalHospitals}</p>
-              </div>
-              <Hospital size={48} className="text-emerald-500" />
-            </div>
-            <p className="text-emerald-400 text-sm mt-4 flex items-center gap-1">
-              <TrendingUp size={16} /> +4 new this week
-            </p>
-          </div>
-
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl p-8">
-            <div className="flex justify-between">
-              <div>
-                <p className="text-slate-400">ACTIVE EMERGENCIES</p>
-                <p className="text-5xl font-bold mt-4 text-red-500">{stats.activeEmergencies}</p>
-              </div>
-              <AlertTriangle size={48} className="text-red-500" />
-            </div>
-            <p className="text-slate-400 text-sm mt-4">Across all regions</p>
-          </div>
-
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl p-8">
-            <div className="flex justify-between">
-              <div>
-                <p className="text-slate-400">AVAILABLE AMBULANCES</p>
-                <p className="text-5xl font-bold mt-4 text-blue-400">{stats.availableAmbulances}</p>
-              </div>
-              <Ambulance size={48} className="text-blue-500" />
-            </div>
-            <p className="text-emerald-400 text-sm mt-4">82% fleet utilization</p>
+          <div className="text-sm text-slate-400">
+            {new Date().toLocaleDateString("en-IN", { weekday: "long", month: "long", day: "numeric" })}
           </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-700 rounded-3xl p-8 mb-10">
-          <div className="flex items-center justify-between mb-6">
+        <div className="mb-10 grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="rounded-3xl border border-slate-700 bg-slate-900 p-8">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-slate-400">Total Users</p>
+                <p className="mt-4 text-4xl font-bold">{dashboardData.stats.totalUsers.toLocaleString()}</p>
+              </div>
+              <Users size={40} className="text-blue-500" />
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-slate-700 bg-slate-900 p-8">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-slate-400">Total Hospitals</p>
+                <p className="mt-4 text-4xl font-bold">{dashboardData.stats.totalHospitals}</p>
+              </div>
+              <Hospital size={40} className="text-emerald-500" />
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-slate-700 bg-slate-900 p-8">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-slate-400">Hospitals Online</p>
+                <p className="mt-4 text-4xl font-bold text-emerald-400">{dashboardData.stats.hospitalsOnline}</p>
+              </div>
+              <AlertTriangle size={40} className="text-emerald-400" />
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-slate-700 bg-slate-900 p-8">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-slate-400">Hospitals Offline</p>
+                <p className="mt-4 text-4xl font-bold text-amber-400">{dashboardData.stats.hospitalsOffline}</p>
+              </div>
+              <Hospital size={40} className="text-amber-400" />
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-slate-700 bg-slate-900 p-8">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-slate-400">Active SOS Requests</p>
+                <p className="mt-4 text-4xl font-bold text-red-500">{dashboardData.stats.activeSosRequests}</p>
+              </div>
+              <Ambulance size={40} className="text-red-500" />
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-10 rounded-3xl border border-slate-700 bg-slate-900 p-8">
+          <div className="mb-6 flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-semibold">Hospital Management</h3>
-              <p className="text-slate-400 text-sm">Create and view hospital accounts</p>
+              <p className="text-sm text-slate-400">Manage hospital accounts directly from the dashboard.</p>
             </div>
             <button
               onClick={() => setShowHospitalModal(true)}
-              className="bg-blue-600 hover:bg-blue-500 text-white rounded-2xl px-5 py-3 text-sm font-semibold"
+              className="flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-500"
             >
-              + Add Hospital
+              <Plus size={16} />
+              Add Hospital
             </button>
           </div>
 
@@ -218,256 +366,303 @@ export default function AdminDashboard() {
             <table className="min-w-full text-left text-sm text-slate-300">
               <thead>
                 <tr className="border-b border-slate-700 text-slate-400">
-                  <th className="py-4 px-3">Hospital Name</th>
-                  <th className="py-4 px-3">Email</th>
-                  <th className="py-4 px-3">Available Beds</th>
-                  <th className="py-4 px-3">Available Ambulances</th>
-                  <th className="py-4 px-3">Status</th>
-                  <th className="py-4 px-3">Action</th>
+                  <th className="px-3 py-4">Hospital Name</th>
+                  <th className="px-3 py-4">Email</th>
+                  <th className="px-3 py-4">Address</th>
+                  <th className="px-3 py-4">Status</th>
+                  <th className="px-3 py-4">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
-                {hospitals.map((h) => (
-                  <tr key={h._id} className="hover:bg-slate-800/50">
-                    <td className="py-4 px-3 font-medium">{h.name}</td>
-                    <td className="py-4 px-3 text-slate-400">{h.email}</td>
-                    <td className="py-4 px-3">{h.availableBeds}/{h.totalBeds}</td>
-                    <td className="py-4 px-3">{h.availableAmbulances}/{h.totalAmbulances}</td>
-                    <td className="py-4 px-3">
-                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${h.isOnline ? "bg-emerald-500/20 text-emerald-300" : "bg-amber-500/20 text-amber-300"}`}>
-                        {h.isOnline ? "Online" : "Offline"}
-                      </span>
-                    </td>
-                    <td className="py-4 px-3">
-                      <button
-                        type="button"
-                        className="px-4 py-2 rounded-2xl border border-slate-700 text-slate-300 hover:bg-slate-800"
-                      >
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {hospitals.length === 0 && (
+                {loading ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-slate-500">No hospitals found.</td>
+                    <td colSpan={5} className="py-8 text-center text-slate-500">
+                      Loading hospitals...
+                    </td>
                   </tr>
+                ) : dashboardData.hospitals.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-500">
+                      No hospitals found.
+                    </td>
+                  </tr>
+                ) : (
+                  dashboardData.hospitals.map((hospital) => (
+                    <tr key={hospital._id} className="hover:bg-slate-800/50">
+                      <td className="px-3 py-4 font-medium">{hospital.name}</td>
+                      <td className="px-3 py-4 text-slate-400">{hospital.email}</td>
+                      <td className="px-3 py-4 text-slate-400">{hospital.address}</td>
+                      <td className="px-3 py-4">
+                        <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${hospital.isOnline ? "bg-emerald-500/20 text-emerald-300" : "bg-amber-500/20 text-amber-300"}`}>
+                          {hospital.isOnline ? "Online" : "Offline"}
+                        </span>
+                      </td>
+                      <td className="px-3 py-4">
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" onClick={() => handleHospitalAction("View", hospital)} className="rounded-xl border border-slate-700 px-3 py-2 text-slate-300 transition-colors hover:bg-slate-800">
+                            <Eye size={14} />
+                          </button>
+                          <button type="button" onClick={() => handleHospitalAction("Edit", hospital)} className="rounded-xl border border-slate-700 px-3 py-2 text-slate-300 transition-colors hover:bg-slate-800">
+                            <Pencil size={14} />
+                          </button>
+                          <button type="button" onClick={() => handleHospitalAction("Delete", hospital)} className="rounded-xl border border-slate-700 px-3 py-2 text-slate-300 transition-colors hover:bg-slate-800">
+                            <Trash2 size={14} />
+                          </button>
+                          <button type="button" onClick={() => handleHospitalAction("Reset Password", hospital)} className="rounded-xl border border-slate-700 px-3 py-2 text-slate-300 transition-colors hover:bg-slate-800">
+                            <KeyRound size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-          {/* Recent Emergency Requests */}
-          <div className="xl:col-span-7">
-            <div className="bg-slate-900 border border-slate-700 rounded-3xl p-8">
-              <h3 className="text-2xl font-semibold mb-6 flex items-center gap-3">
-                <Clock className="text-red-500" /> Recent Emergency Requests
-              </h3>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-slate-700 text-slate-400 text-sm">
-                      <th className="text-left py-4">PATIENT</th>
-                      <th className="text-left py-4">HOSPITAL</th>
-                      <th className="text-left py-4">TYPE</th>
-                      <th className="text-left py-4">TIME</th>
-                      <th className="text-left py-4">SEVERITY</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800">
-                    {recentRequests.map((req) => (
-                      <tr key={req.id} className="hover:bg-slate-800/50">
-                        <td className="py-5 font-medium">{req.patient}</td>
-                        <td className="py-5 text-slate-400">{req.hospital}</td>
-                        <td className="py-5">{req.type}</td>
-                        <td className="py-5 text-sm text-slate-400">{req.time}</td>
-                        <td className="py-5">
-                          <span className={`px-4 py-1 text-xs font-medium rounded-full
-                            ${req.status === "Critical" ? "bg-red-500/20 text-red-400" : 
-                              req.status === "High" ? "bg-orange-500/20 text-orange-400" : 
-                              "bg-yellow-500/20 text-yellow-400"}`}>
-                            {req.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <div className="rounded-3xl border border-slate-700 bg-slate-900 p-8">
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-semibold">Hospital Map (Mapbox)</h3>
+                <p className="text-sm text-slate-400">Live positions from the hospital database.</p>
+              </div>
+            </div>
+
+            <div className="relative h-72 overflow-hidden rounded-3xl border border-slate-800 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.22),_transparent_35%),linear-gradient(135deg,_#0f172a_0%,_#020617_100%)]">
+              {dashboardData.hospitals.slice(0, 6).map((hospital, index) => {
+                const top = 20 + (index % 3) * 22;
+                const left = 15 + (index % 2) * 45;
+                return (
+                  <div
+                    key={hospital._id}
+                    className="absolute"
+                    style={{ top: `${top}%`, left: `${left}%` }}
+                  >
+                    <div className="flex items-center gap-2 rounded-full border border-emerald-500/30 bg-slate-950/80 px-3 py-2 shadow-lg backdrop-blur">
+                      <MapPin size={14} className="text-emerald-400" />
+                      <span className="text-xs text-slate-200">{hospital.name}</span>
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="absolute bottom-4 left-4 rounded-2xl border border-slate-800 bg-slate-950/80 px-4 py-3 text-sm backdrop-blur">
+                <p className="font-semibold text-slate-100">{dashboardData.hospitals.length} hospitals mapped</p>
+                <p className="text-slate-400">Mapbox-ready hospital markers from MongoDB</p>
               </div>
             </div>
           </div>
 
-          {showHospitalModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-              <div className="w-full max-w-3xl bg-slate-950 border border-slate-700 rounded-3xl p-8 shadow-2xl overflow-y-auto max-h-[90vh]">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="text-2xl font-semibold">Add Hospital</h3>
-                    <p className="text-slate-400 text-sm">Create a new hospital account for the system</p>
-                  </div>
-                  <button
-                    onClick={() => setShowHospitalModal(false)}
-                    className="text-slate-400 hover:text-white"
-                  >
-                    Close
-                  </button>
-                </div>
-
-                <form onSubmit={handleCreateHospital} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm text-slate-400 mb-2">Hospital Name</label>
-                      <input
-                        name="name"
-                        value={hospitalForm.name}
-                        onChange={handleHospitalChange}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-2xl px-4 py-3 text-white"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-slate-400 mb-2">Hospital Email</label>
-                      <input
-                        type="email"
-                        name="email"
-                        value={hospitalForm.email}
-                        onChange={handleHospitalChange}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-2xl px-4 py-3 text-white"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-slate-400 mb-2">Hospital Password</label>
-                      <input
-                        type="password"
-                        name="password"
-                        value={hospitalForm.password}
-                        onChange={handleHospitalChange}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-2xl px-4 py-3 text-white"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-slate-400 mb-2">Phone Number</label>
-                      <input
-                        name="phone"
-                        value={hospitalForm.phone}
-                        onChange={handleHospitalChange}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-2xl px-4 py-3 text-white"
-                        required
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm text-slate-400 mb-2">Address</label>
-                      <input
-                        name="address"
-                        value={hospitalForm.address}
-                        onChange={handleHospitalChange}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-2xl px-4 py-3 text-white"
-                        required
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm text-slate-400 mb-2">Emergency Types</label>
-                      <input
-                        name="emergencyTypes"
-                        value={hospitalForm.emergencyTypes}
-                        onChange={handleHospitalChange}
-                        placeholder="Trauma, Cardiac, ICU"
-                        className="w-full bg-slate-900 border border-slate-700 rounded-2xl px-4 py-3 text-white"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
-                    <button
-                      type="button"
-                      onClick={() => setShowHospitalModal(false)}
-                      className="px-6 py-3 rounded-2xl border border-slate-700 text-slate-300 hover:bg-slate-800"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isSubmittingHospital}
-                      className="px-6 py-3 rounded-2xl bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-60"
-                    >
-                      {isSubmittingHospital ? "Creating..." : "Create Hospital"}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-
-          {/* Analytics & System Health */}
-          <div className="xl:col-span-12 grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Emergency Trends Chart Placeholder */}
-            <div className="bg-slate-900 border border-slate-700 rounded-3xl p-8">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-2xl font-semibold">Emergency Trends</h3>
-                <div className="text-sm text-slate-400">Last 30 Days</div>
-              </div>
-              <div className="h-80 bg-slate-950 rounded-2xl flex items-center justify-center border border-dashed border-slate-700">
-                <div className="text-center">
-                  <TrendingUp size={64} className="mx-auto text-slate-500 mb-4" />
-                  <p className="text-slate-400">Emergency Trends Chart</p>
-                  <p className="text-xs text-slate-500 mt-2">Interactive Chart Integration Coming Soon</p>
-                </div>
+          <div className="rounded-3xl border border-slate-700 bg-slate-900 p-8">
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-semibold">Live SOS Monitor</h3>
+                <p className="text-sm text-slate-400">Current active requests from the emergency feed.</p>
               </div>
             </div>
 
-            {/* System Health */}
-            <div className="bg-slate-900 border border-slate-700 rounded-3xl p-8">
-              <h3 className="text-2xl font-semibold mb-8 flex items-center gap-3">
-                <Activity className="text-emerald-500" /> System Health
-              </h3>
-              
-              <div className="space-y-8">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-5 h-5 bg-emerald-500 rounded-full animate-pulse" />
-                    <span>Server Status</span>
-                  </div>
-                  <span className="text-emerald-400 font-medium">Healthy</span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-5 h-5 bg-emerald-500 rounded-full animate-pulse" />
-                    <span>Database Connection</span>
-                  </div>
-                  <span className="text-emerald-400 font-medium">Connected</span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-5 h-5 bg-amber-500 rounded-full" />
-                    <span>GPS Services</span>
-                  </div>
-                  <span className="text-amber-400 font-medium">Stable</span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-5 h-5 bg-emerald-500 rounded-full animate-pulse" />
-                    <span>Notification Service</span>
-                  </div>
-                  <span className="text-emerald-400 font-medium">Operational</span>
-                </div>
-
-                <div className="pt-6 border-t border-slate-700">
-                  <p className="text-sm text-slate-400">Average Response Time: <span className="text-emerald-400 font-semibold">2.4 minutes</span></p>
-                  <p className="text-xs text-slate-500 mt-1">Last updated just now</p>
+            {dashboardData.activeEmergencies.length === 0 ? (
+              <div className="flex h-60 items-center justify-center rounded-3xl border border-dashed border-slate-700 bg-slate-950/60 text-center">
+                <div>
+                  <AlertTriangle size={40} className="mx-auto mb-3 text-slate-500" />
+                  <p className="text-slate-400">No active SOS requests at the moment.</p>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-3">
+                {dashboardData.activeEmergencies.map((emergency) => (
+                  <div key={emergency._id} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-slate-100">{emergency.user?.name || "Unknown User"}</p>
+                        <p className="text-sm text-slate-400">{emergency.assignedHospital?.name || "Awaiting assignment"}</p>
+                      </div>
+                      <span className="rounded-full bg-red-500/20 px-3 py-1 text-xs font-semibold text-red-400">
+                        {emergency.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {showHospitalModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-slate-700 bg-slate-950 p-8 shadow-2xl">
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-semibold">{isEditingHospital ? 'Edit Hospital' : 'Add Hospital'}</h3>
+                <p className="text-sm text-slate-400">{isEditingHospital ? 'Update hospital account details.' : 'Create a new hospital account for the system.'}</p>
+              </div>
+              <button onClick={() => { setShowHospitalModal(false); setIsEditingHospital(false); setEditingHospitalId(null); }} className="text-slate-400 hover:text-white">
+                Close
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateHospital} className="space-y-6">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm text-slate-400">Hospital Name</label>
+                  <input
+                    name="name"
+                    value={hospitalForm.name}
+                    onChange={handleHospitalChange}
+                    className="w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-white"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm text-slate-400">Hospital Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={hospitalForm.email}
+                    onChange={handleHospitalChange}
+                    className="w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-white"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm text-slate-400">Hospital Password</label>
+                  <label className="mb-3 flex items-center gap-2 text-sm text-slate-400">
+                    <input
+                      type="checkbox"
+                      checked={generatePassword}
+                      onChange={(e) => setGeneratePassword(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-700 bg-slate-900"
+                    />
+                    Auto-generate password
+                  </label>
+                  {!generatePassword && (
+                    <input
+                      type="password"
+                      name="password"
+                      value={hospitalForm.password}
+                      onChange={handleHospitalChange}
+                      className="w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-white"
+                      required
+                    />
+                  )}
+                  {generatePassword && (
+                    <p className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+                      A secure password will be generated automatically.
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm text-slate-400">Phone Number</label>
+                  <input
+                    name="phone"
+                    value={hospitalForm.phone}
+                    onChange={handleHospitalChange}
+                    className="w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-white"
+                    required
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="mb-2 block text-sm text-slate-400">Address</label>
+                  <input
+                    name="address"
+                    value={hospitalForm.address}
+                    onChange={handleHospitalChange}
+                    className="w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-white"
+                    required
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="mb-2 block text-sm text-slate-400">Emergency Types</label>
+                  <input
+                    name="emergencyTypes"
+                    value={hospitalForm.emergencyTypes}
+                    onChange={handleHospitalChange}
+                    placeholder="Trauma, Cardiac, ICU"
+                    className="w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-white"
+                    required
+                  />
+                </div>
+              </div>
+
+              {hospitalFormError && (
+                <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                  {hospitalFormError}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 border-t border-slate-800 pt-4">
+                <button
+                  type="button"
+                  onClick={() => { setShowHospitalModal(false); setIsEditingHospital(false); setEditingHospitalId(null); }}
+                  className="rounded-2xl border border-slate-700 px-6 py-3 text-slate-300 transition-colors hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingHospital}
+                  className="rounded-2xl bg-blue-600 px-6 py-3 text-white transition-colors hover:bg-blue-500 disabled:opacity-60"
+                >
+                  {isSubmittingHospital ? (isEditingHospital ? 'Saving...' : 'Creating...') : (isEditingHospital ? 'Save Changes' : 'Create Hospital')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showViewModal && selectedHospital && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="max-w-2xl w-full rounded-3xl border border-slate-700 bg-slate-950 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-2xl font-semibold">{selectedHospital.name}</h3>
+                <p className="text-sm text-slate-400">Hospital details</p>
+              </div>
+              <button onClick={() => { setShowViewModal(false); setSelectedHospital(null); }} className="text-slate-400 hover:text-white">Close</button>
+            </div>
+            <div className="grid grid-cols-1 gap-3">
+              <div><strong>Email:</strong> <span className="text-slate-300">{selectedHospital.email}</span></div>
+              <div><strong>Phone:</strong> <span className="text-slate-300">{selectedHospital.phone}</span></div>
+              <div><strong>Address:</strong> <span className="text-slate-300">{selectedHospital.address}</span></div>
+              <div><strong>Emergency Types:</strong> <span className="text-slate-300">{(selectedHospital.emergencyTypes||[]).join(', ')}</span></div>
+              <div><strong>Status:</strong> <span className="text-slate-300">{selectedHospital.isOnline ? 'Online' : 'Offline'}</span></div>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button onClick={() => { setShowViewModal(false); setSelectedHospital(null); }} className="rounded-2xl border border-slate-700 px-4 py-2 text-slate-300">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="max-w-sm w-full rounded-3xl border border-slate-700 bg-slate-950 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-semibold">Generated Password</h3>
+                <p className="text-sm text-slate-400">Share this password with the hospital for first login.</p>
+              </div>
+              <button onClick={() => { setShowPasswordModal(false); setPasswordToShow(""); }} className="text-slate-400 hover:text-white">Close</button>
+            </div>
+
+            <div className="mb-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-center">
+              <div className="text-2xl font-mono text-emerald-200 break-all">{passwordToShow}</div>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => { navigator.clipboard?.writeText(passwordToShow); showSuccessToast('Password copied to clipboard'); }}
+                className="rounded-2xl border border-slate-700 px-4 py-2 text-slate-300"
+              >
+                Copy
+              </button>
+              <button onClick={() => { setShowPasswordModal(false); setPasswordToShow(""); }} className="rounded-2xl bg-blue-600 px-4 py-2 text-white">Done</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

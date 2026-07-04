@@ -10,7 +10,7 @@ export default function UserDashboard() {
   const [user, setUser] = useState({
     name: "Rahul Sharma",
     bloodGroup: "O+",
-    emergencyContact: { name: "Priya Sharma", phone: "+91 98765 43210" }
+    emergencyContact: "Priya Sharma | +91 98765 43210"
   });
 
   const [isEmergencyActive, setIsEmergencyActive] = useState(false);
@@ -23,15 +23,37 @@ export default function UserDashboard() {
     location: "2.3 km away"
   });
 
+  // parse emergency contact into name/phone
+  const parseEmergencyContact = (ec) => {
+    if (!ec || typeof ec !== 'string') return { name: null, phone: null };
+    const parts = ec.split('|').map(p => p.trim());
+    return { name: parts[0] || null, phone: parts[1] || null };
+  }
+
   const [showSOSModal, setShowSOSModal] = useState(false);
   const [isActivating, setIsActivating] = useState(false);
 
-  // Load user from localStorage
+  // Load user from API (fallback to localStorage)
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    const loadUser = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) setUser(JSON.parse(storedUser));
+        return;
+      }
+      try {
+        const res = await axios.get('http://localhost:5000/api/user/me', { headers: { Authorization: `Bearer ${token}` } });
+        if (res.data && res.data.user) {
+          setUser(res.data.user);
+          localStorage.setItem('user', JSON.stringify(res.data.user));
+        }
+      } catch (err) {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) setUser(JSON.parse(storedUser));
+      }
+    };
+    loadUser();
   }, []);
 
   const emergencyHistory = [
@@ -198,10 +220,10 @@ export default function UserDashboard() {
                     <div>
                       <p className="text-xs text-slate-400">EMERGENCY CONTACT</p>
                       <p className="font-medium mt-1">
-                        {user?.emergencyContact?.name || "Not Added"}
+                        {parseEmergencyContact(user?.emergencyContact).name || "Not Added"}
                       </p>
                       <p className="text-red-400 text-sm">
-                        {user?.emergencyContact?.phone || "-"}
+                        {parseEmergencyContact(user?.emergencyContact).phone || "-"}
                       </p>
                     </div>
                     <div>
@@ -270,8 +292,8 @@ export default function UserDashboard() {
                       <Phone className="text-red-500" />
                     </div>
                     <div>
-                      <p className="font-medium">{user?.emergencyContact?.name || "Not Added"}</p>
-                      <p className="text-slate-400">{user?.emergencyContact?.phone || "-"}</p>
+                      <p className="font-medium">{parseEmergencyContact(user?.emergencyContact).name || "Not Added"}</p>
+                      <p className="text-slate-400">{parseEmergencyContact(user?.emergencyContact).phone || "-"}</p>
                     </div>
                   </div>
                   <button className="text-red-500 hover:text-red-400">Call Now</button>

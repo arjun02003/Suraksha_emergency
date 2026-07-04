@@ -5,7 +5,15 @@ const jwt = require("jsonwebtoken");
 // ================= REGISTER =================
 exports.registerUser = async (req, res) => {
   try {
-    const { name, email, phone, password, role } = req.body;
+    const {
+      name,
+      email,
+      phone,
+      password,
+      role,
+      bloodGroup,
+      emergencyContact,
+    } = req.body;
 
     if (!name || !email || !phone || !password) {
       return res.status(400).json({
@@ -38,6 +46,8 @@ exports.registerUser = async (req, res) => {
       phone,
       password: hashedPassword,
       role: "user",
+      bloodGroup: bloodGroup || "",
+      emergencyContact: emergencyContact || "",
     });
 
     return res.status(201).json({
@@ -49,6 +59,8 @@ exports.registerUser = async (req, res) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
+        bloodGroup: user.bloodGroup,
+        emergencyContact: user.emergencyContact,
       },
     });
   } catch (err) {
@@ -65,7 +77,6 @@ exports.loginUser = async (req, res) => {
   try {
     const { email, password, role: selectedRole } = req.body;
 
-    // Check if fields are empty
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -73,10 +84,8 @@ exports.loginUser = async (req, res) => {
       });
     }
 
-    // Find user
     const user = await User.findOne({ email });
 
-    // User not registered
     if (!user) {
       return res.status(400).json({
         success: false,
@@ -84,10 +93,8 @@ exports.loginUser = async (req, res) => {
       });
     }
 
-    // Compare password
     const isMatch = await bcrypt.compare(password, user.password);
 
-    // Wrong password
     if (!isMatch) {
       return res.status(400).json({
         success: false,
@@ -95,22 +102,16 @@ exports.loginUser = async (req, res) => {
       });
     }
 
-    // Verify selected role matches registered role
     if (selectedRole && selectedRole !== user.role) {
-      const registeredRoleLabel = user.role.charAt(0).toUpperCase() + user.role.slice(1);
-      let message = `Access denied. This account is registered as ${registeredRoleLabel}. Please login using the ${registeredRoleLabel} role.`;
-
-      if (selectedRole === "admin") {
-        message += " Admin login is only available for registered administrators.";
-      }
+      const registeredRoleLabel =
+        user.role.charAt(0).toUpperCase() + user.role.slice(1);
 
       return res.status(403).json({
         success: false,
-        message,
+        message: `Access denied. This account is registered as ${registeredRoleLabel}.`,
       });
     }
 
-    // Generate JWT
     const token = jwt.sign(
       {
         id: user._id,
@@ -122,7 +123,6 @@ exports.loginUser = async (req, res) => {
       }
     );
 
-    // Login Success
     return res.status(200).json({
       success: true,
       message: "Login Successful",
@@ -133,6 +133,8 @@ exports.loginUser = async (req, res) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
+        bloodGroup: user.bloodGroup,
+        emergencyContact: user.emergencyContact,
       },
     });
   } catch (error) {
