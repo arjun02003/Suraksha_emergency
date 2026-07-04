@@ -78,7 +78,13 @@ export default function Register() {
           password: formData.password,
           role: "user",
           bloodGroup: formData.bloodGroup,
+<<<<<<< HEAD
           emergencyContact: `${formData.emergencyContactName} | ${formData.emergencyContactNumber}`,
+=======
+          emergencyContact: formData.emergencyContactName && formData.emergencyContactNumber
+            ? `${formData.emergencyContactName} - ${formData.emergencyContactNumber}`
+            : "",
+>>>>>>> origin/main
         }
       );
 

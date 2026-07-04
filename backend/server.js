@@ -9,6 +9,10 @@ const hospitalRoutes = require("./routes/HospitalRoutes");
 const ambulanceRoutes = require("./routes/AmbulanceRoutes");
 const adminRoutes = require("./routes/AdminRoutes");
 const userRoutes = require("./routes/UserRoutes");
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/main
 dotenv.config();
 
 // Database Connect

@@ -4,6 +4,9 @@ import axios from "axios";
 import { 
   Bed, Ambulance, AlertTriangle, User, CheckCircle, XCircle, LogOut, Bell, Edit, Trash 
 } from "lucide-react";
+import { MapContainer, HospitalMarker } from "../components/map";
+import { hospitalToMapPoint } from "../utils/mapUtils";
+import { MAPBOX_DEFAULTS } from "../config/mapbox";
 
 export default function HospitalDashboard() {
   const [hospital, setHospital] = useState({
@@ -701,8 +704,32 @@ export default function HospitalDashboard() {
             </div>
           </div>
 
-          {/* Right Sidebar - Queue, Map, Notifications */}
-          {/* (Same as previous version) */}
+          {/* Right Sidebar - Hospital Location Map */}
+          <div className="xl:col-span-5">
+            <div className="bg-slate-900 border border-slate-700 rounded-3xl p-8">
+              <h3 className="text-2xl font-semibold mb-6">Your Location</h3>
+              <div style={{ height: 400 }}>
+                {hospitalData ? (
+                  <MapContainer
+                    longitude={hospitalData.location?.longitude}
+                    latitude={hospitalData.location?.latitude}
+                    zoom={MAPBOX_DEFAULTS.hospitalZoom}
+                  >
+                    {(map) => {
+                      const point = hospitalToMapPoint(hospitalData);
+                      return point ? (
+                        <HospitalMarker map={map} hospital={point} />
+                      ) : null;
+                    }}
+                  </MapContainer>
+                ) : (
+                  <div className="w-full h-full bg-slate-950 rounded-2xl flex items-center justify-center text-slate-500">
+                    Loading hospital location...
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

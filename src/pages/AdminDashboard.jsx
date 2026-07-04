@@ -15,6 +15,7 @@ import {
   KeyRound,
   MapPin,
 } from "lucide-react";
+import { HospitalMap } from "../components/map";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -421,6 +422,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
+<<<<<<< HEAD
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <div className="rounded-3xl border border-slate-700 bg-slate-900 p-8">
             <div className="mb-6 flex items-center justify-between">
@@ -450,6 +452,54 @@ export default function AdminDashboard() {
               <div className="absolute bottom-4 left-4 rounded-2xl border border-slate-800 bg-slate-950/80 px-4 py-3 text-sm backdrop-blur">
                 <p className="font-semibold text-slate-100">{dashboardData.hospitals.length} hospitals mapped</p>
                 <p className="text-slate-400">Mapbox-ready hospital markers from MongoDB</p>
+=======
+        {/* Hospital Map — shows all hospitals from MongoDB */}
+        <div className="bg-slate-900 border border-slate-700 rounded-3xl p-8 mb-10">
+          <h3 className="text-2xl font-semibold mb-6 flex items-center gap-3">
+            <Hospital size={22} className="text-emerald-500" />
+            Hospital Locations
+          </h3>
+          <HospitalMap hospitals={hospitals} height={480} />
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          {/* Recent Emergency Requests */}
+          <div className="xl:col-span-7">
+            <div className="bg-slate-900 border border-slate-700 rounded-3xl p-8">
+              <h3 className="text-2xl font-semibold mb-6 flex items-center gap-3">
+                <Clock className="text-red-500" /> Recent Emergency Requests
+              </h3>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-700 text-slate-400 text-sm">
+                      <th className="text-left py-4">PATIENT</th>
+                      <th className="text-left py-4">HOSPITAL</th>
+                      <th className="text-left py-4">TYPE</th>
+                      <th className="text-left py-4">TIME</th>
+                      <th className="text-left py-4">SEVERITY</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800">
+                    {recentRequests.map((req) => (
+                      <tr key={req.id} className="hover:bg-slate-800/50">
+                        <td className="py-5 font-medium">{req.patient}</td>
+                        <td className="py-5 text-slate-400">{req.hospital}</td>
+                        <td className="py-5">{req.type}</td>
+                        <td className="py-5 text-sm text-slate-400">{req.time}</td>
+                        <td className="py-5">
+                          <span className={`px-4 py-1 text-xs font-medium rounded-full
+                            ${req.status === "Critical" ? "bg-red-500/20 text-red-400" : 
+                              req.status === "High" ? "bg-orange-500/20 text-orange-400" : 
+                              "bg-yellow-500/20 text-yellow-400"}`}>
+                            {req.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+>>>>>>> origin/main
               </div>
             </div>
           </div>
