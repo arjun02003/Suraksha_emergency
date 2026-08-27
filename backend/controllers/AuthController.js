@@ -5,7 +5,6 @@ const jwt = require("jsonwebtoken");
 // ================= REGISTER =================
 exports.registerUser = async (req, res) => {
   try {
-<<<<<<< HEAD
     const {
       name,
       email,
@@ -15,9 +14,6 @@ exports.registerUser = async (req, res) => {
       bloodGroup,
       emergencyContact,
     } = req.body;
-=======
-    const { name, email, phone, password, role, bloodGroup, emergencyContact } = req.body;
->>>>>>> origin/main
 
     if (!name || !email || !phone || !password) {
       return res.status(400).json({
